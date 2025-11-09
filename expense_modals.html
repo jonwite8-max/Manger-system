@@ -1,0 +1,249 @@
+<!-- مودال الإضافة السريعة -->
+<div id="quickAddModal" class="modal">
+  <div class="modal-content max-w-md">
+    <div class="modal-header">
+      <h3 class="text-xl font-bold text-gray-900">⚡ إضافة مصروف سريع</h3>
+      <button onclick="hideModal('quickAddModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <form method="POST" action="{{ url_for('quick_add_expense') }}" class="p-6 space-y-4" id="quickAddForm">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">📁 التصنيف</label>
+        <select name="category_id" class="form-select" required>
+          {% for category in categories %}
+          <option value="{{ category.id }}">{{ category.icon }} {{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">📝 الوصف</label>
+        <input type="text" name="description" class="form-input" placeholder="وصف المصروف" required>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">💰 المبلغ (دج)</label>
+        <input type="number" step="0.01" name="amount" class="form-input" placeholder="0.00" required>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">👤 المشتري</label>
+        <select name="purchased_by" class="form-select">
+          <option value="owner">أنا</option>
+          <option value="partner">الشريك</option>
+          <option value="worker">عامل</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">🏢 المورد (اختياري)</label>
+        <select name="supplier_id" class="form-select">
+          <option value="">-- اختر المورد --</option>
+          {% for supplier in suppliers %}
+          <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">📝 ملاحظات</label>
+        <textarea name="notes" class="form-input" rows="2" placeholder="ملاحظات إضافية"></textarea>
+      </div>
+      
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" onclick="hideModal('quickAddModal')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-success">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- مودال إضافة مصروف كامل -->
+<div id="addExpenseModal" class="modal">
+  <div class="modal-content max-w-4xl">
+    <div class="modal-header">
+      <h3 class="text-xl font-bold text-gray-900">💰 إضافة مصروف جديد</h3>
+      <button onclick="hideModal('addExpenseModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <form method="POST" action="{{ url_for('add_expense') }}" class="p-6 space-y-6" id="expenseForm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- العمود الأول -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">📁 التصنيف *</label>
+            <select name="category_id" class="form-select" required>
+              {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.icon }} {{ category.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">📝 الوصف *</label>
+            <input type="text" name="description" class="form-input" placeholder="وصف المصروف أو المنتج" required>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">💰 سعر الوحدة (دج) *</label>
+              <input type="number" step="0.01" name="unit_price" class="form-input" placeholder="0.00" required id="unitPrice" oninput="calculateTotal()">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">🔢 الكمية *</label>
+              <input type="number" name="quantity" class="form-input" value="1" required id="quantity" oninput="calculateTotal()">
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium text-gray-700">🧮 الإجمالي:</span>
+              <span id="totalPreview" class="text-lg font-bold text-purple-600">0.00 دج</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- العمود الثاني -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">🏢 المورد (اختياري)</label>
+            <select name="supplier_id" class="form-select">
+              <option value="">-- اختر المورد --</option>
+              {% for supplier in suppliers %}
+              <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">👤 المشتري *</label>
+            <select name="purchased_by" class="form-select" required>
+              <option value="owner">أنا</option>
+              <option value="partner">الشريك</option>
+              <option value="worker">عامل</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">📅 تاريخ الشراء *</label>
+            <input type="date" name="purchase_date" class="form-input" value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">💰 حالة الدفع</label>
+              <select name="payment_status" class="form-select">
+                <option value="paid">مدفوعة</option>
+                <option value="unpaid">غير مدفوعة</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">💳 طريقة الدفع</label>
+              <select name="payment_method" class="form-select">
+                <option value="cash">نقدي</option>
+                <option value="check">شيك</option>
+                <option value="transfer">تحويل</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">📝 ملاحظات إضافية</label>
+        <textarea name="notes" class="form-input" rows="3" placeholder="ملاحظات إضافية حول المصروف..."></textarea>
+      </div>
+      
+      <div class="flex items-center">
+        <input type="checkbox" name="save_to_price_history" value="yes" id="savePriceHistory" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+        <label for="savePriceHistory" class="ml-2 text-sm text-gray-700">💾 حفظ في سجل أسعار المنتجات</label>
+      </div>
+      
+      <div class="flex justify-end gap-3 pt-6 border-t">
+        <button type="button" onclick="hideModal('addExpenseModal')" class="btn-secondary">إلغاء</button>
+        <button type="submit" class="btn-success">إضافة المصروف</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// دالة حساب الإجمالي
+function calculateTotal() {
+    const unitPrice = parseFloat(document.getElementById('unitPrice').value) || 0;
+    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+    const total = unitPrice * quantity;
+    
+    document.getElementById('totalPreview').textContent = total.toFixed(2) + ' دج';
+}
+
+// إرسال النموذج باستخدام AJAX لمنع إعادة تحميل الصفحة
+document.getElementById('expenseForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            hideModal('addExpenseModal');
+            location.reload(); // إعادة تحميل الصفحة لعرض البيانات الجديدة
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('حدث خطأ أثناء الإضافة: ' + error);
+    });
+});
+
+// نفس الشيء للنموذج السريع
+document.getElementById('quickAddForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            hideModal('quickAddModal');
+            location.reload();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('حدث خطأ أثناء الإضافة: ' + error);
+    });
+});
+
+// التهيئة عند فتح المودال
+document.addEventListener('DOMContentLoaded', function() {
+    // تعيين تاريخ اليوم كقيمة افتراضية
+    const today = new Date().toISOString().split('T')[0];
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        if (!input.value) {
+            input.value = today;
+        }
+    });
+    
+    // حساب الإجمالي الأولي
+    calculateTotal();
+});
+</script>

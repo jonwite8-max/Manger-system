@@ -1,0 +1,2032 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+  <!-- رأس الصفحة -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">👥 إدارة حقوق العمال</h1>
+      <p class="text-gray-600 mt-2">إدارة معلومات العمال والحقوق المالية المستحقة</p>
+    </div>
+    
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <!-- إجمالي الحقوق -->
+      <div class="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl px-6 py-4 shadow-lg">
+        <div class="text-sm font-medium">إجمالي الحقوق المستحقة</div>
+        <div class="text-2xl font-bold mt-1">{{ "%.2f"|format(total_salaries) }} <span class="text-sm">دج</span></div>
+      </div>
+      
+      <!-- إجمالي التسبيقات -->
+      <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl px-6 py-4 shadow-lg">
+        <div class="text-sm font-medium">إجمالي التسبيقات</div>
+        <div class="text-2xl font-bold mt-1">{{ "%.2f"|format(total_advances) }} <span class="text-sm">دج</span></div>
+      </div>
+      
+      <button onclick="showModal('addWorkerModal')" class="btn-success flex items-center gap-2">
+        <i class="fas fa-user-plus"></i>
+        إضافة عامل جديد
+      </button>
+    </div>
+  </div>
+
+  <!-- بطاقات الإحصائيات السريعة -->
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-bold text-blue-600">{{ workers|length }}</div>
+      <div class="text-sm text-gray-600 mt-1">إجمالي العمال</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-bold text-green-600">{{ active_workers|length }}</div>
+      <div class="text-sm text-gray-600 mt-1">عمال نشطين</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-bold text-orange-600">{{ workers|sum(attribute='absences') }}</div>
+      <div class="text-sm text-gray-600 mt-1">أيام غياب</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-bold text-purple-600">{{ workers|sum(attribute='outside_work_days') }}</div>
+      <div class="text-sm text-gray-600 mt-1">أيام خارجية</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-bold text-red-600">{{ frozen_workers|length }}</div>
+      <div class="text-sm text-gray-600 mt-1">عمال مجمدين</div>
+    </div>
+  </div>
+
+  <!-- شريط البحث والتصفية -->
+  <div class="card p-6 mb-6">
+    <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+      <!-- بحث -->
+      <div class="flex-1 w-full">
+        <label class="block text-sm font-medium text-gray-700 mb-2">🔍 بحث عن عامل</label>
+        <input 
+          type="text" 
+          id="searchInput"
+          placeholder="ابحث بالاسم، الهاتف، رقم البطاقة..."
+          class="form-input w-full"
+        >
+      </div>
+      
+      <!-- أزرار التصفية السريعة -->
+      <div class="flex gap-2">
+        <button onclick="filterWorkers('all')" class="btn-primary px-4 py-2">الكل</button>
+        <button onclick="filterWorkers('active')" class="btn-success px-4 py-2">النشطين</button>
+        <button onclick="filterWorkers('frozen')" class="btn-warning px-4 py-2">المجمدين</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- بطاقات العمال -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="workersGrid">
+    {% for worker in workers %}
+    <div class="worker-card card hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 {% if not worker.is_active %}frozen-card{% endif %}" 
+         data-worker-id="{{ worker.id }}"
+         data-worker-name="{{ worker.name }}"
+         data-worker-phone="{{ worker.phone }}"
+         data-worker-address="{{ worker.address or '' }}"
+         data-worker-id-card="{{ worker.id_card or '' }}"
+         data-worker-start-date="{{ worker.start_date.strftime('%Y-%m-%d') }}"
+         data-worker-monthly-salary="{{ worker.monthly_salary }}"
+         data-worker-absences="{{ worker.absences }}"
+         data-worker-outside-work-days="{{ worker.outside_work_days }}"
+         data-worker-outside-work-bonus="{{ worker.outside_work_bonus }}"
+         data-worker-advances="{{ worker.advances }}"
+         data-worker-incentives="{{ worker.incentives }}"
+         data-worker-late-hours="{{ worker.late_hours or 0 }}"
+         data-worker-is-active="{{ worker.is_active }}"
+         data-worker-total-salary="{{ worker.total_salary }}">
+      
+      <!-- رأس البطاقة -->
+      <div class="card-header bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-xl p-4 -mx-4 -mt-4 mb-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-white font-semibold text-lg backdrop-blur-sm">
+              {{ worker.name[0] }}
+            </div>
+            <div>
+              <div class="font-bold text-white text-lg">{{ worker.name }}</div>
+              <div class="text-blue-100 text-sm">{{ worker.phone }}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            {% if not worker.is_active %}
+            <span class="badge badge-danger bg-white/20 backdrop-blur-sm">🔄 مجمد</span>
+            {% else %}
+            <span class="badge badge-success bg-white/20 backdrop-blur-sm">✅ نشط</span>
+            {% endif %}
+            <div class="text-blue-100 text-xs mt-1">#{{ worker.id }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- المعلومات الأساسية -->
+      <div class="space-y-4 mb-4 px-2">
+        <div class="grid grid-cols-1 gap-3 text-sm">
+          {% if worker.id_card %}
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-600">
+              <i class="fas fa-id-card text-blue-500"></i>
+              <span>رقم البطاقة:</span>
+            </div>
+            <div class="font-medium text-gray-800">{{ worker.id_card }}</div>
+          </div>
+          {% endif %}
+          
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-600">
+              <i class="fas fa-calendar-day text-green-500"></i>
+              <span>تاريخ البدء:</span>
+            </div>
+            <div class="font-medium text-gray-800">{{ worker.start_date.strftime('%Y-%m-%d') }}</div>
+          </div>
+          
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-600">
+              <i class="fas fa-clock text-orange-500"></i>
+              <span>أيام العمل:</span>
+            </div>
+            <div class="font-medium text-gray-800">{{ (now.date() - worker.start_date).days }} يوم</div>
+          </div>
+          
+          {% if worker.address %}
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-600">
+              <i class="fas fa-map-marker-alt text-red-500"></i>
+              <span>العنوان:</span>
+            </div>
+            <div class="font-medium text-gray-800 text-left">{{ worker.address }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- الحضور والغياب -->
+      <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 mb-4 border border-gray-200 mx-2">
+        <h4 class="font-semibold text-gray-900 mb-3 text-sm flex items-center gap-2">
+          <i class="fas fa-user-clock text-purple-500"></i>
+          الحضور والغياب
+        </h4>
+        <div class="grid grid-cols-3 gap-3 text-xs">
+          <div class="text-center bg-white rounded-lg p-2 shadow-sm">
+            <div class="text-gray-600 mb-1">الغياب</div>
+            <div class="font-bold text-red-600 text-lg">{{ worker.absences }}</div>
+            <div class="text-gray-500 text-xs">يوم</div>
+          </div>
+          <div class="text-center bg-white rounded-lg p-2 shadow-sm">
+            <div class="text-gray-600 mb-1">خارجية</div>
+            <div class="font-bold text-blue-600 text-lg">{{ worker.outside_work_days }}</div>
+            <div class="text-gray-500 text-xs">يوم</div>
+          </div>
+          <div class="text-center bg-white rounded-lg p-2 shadow-sm">
+            <div class="text-gray-600 mb-1">تأخر</div>
+            <div class="font-bold text-orange-600 text-lg">{{ worker.late_hours or 0 }}</div>
+            <div class="text-gray-500 text-xs">ساعة</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- المعلومات المالية -->
+      <div class="space-y-3 mb-4 px-2">
+        <div class="flex justify-between items-center p-3 rounded-lg bg-blue-50 border border-blue-100">
+          <span class="text-gray-700 font-medium">الراتب الشهري:</span>
+          <span class="font-bold text-blue-600">{{ "%.2f"|format(worker.monthly_salary) }} دج</span>
+        </div>
+        <div class="flex justify-between items-center p-3 rounded-lg bg-green-50 border border-green-100">
+          <span class="text-gray-700 font-medium">التسبيقات:</span>
+          <span class="font-bold text-green-600">{{ "%.2f"|format(worker.advances) }} دج</span>
+        </div>
+        <div class="flex justify-between items-center p-3 rounded-lg bg-orange-50 border border-orange-100">
+          <span class="text-gray-700 font-medium">العمل الخارجي:</span>
+          <span class="font-bold text-orange-600">+{{ "%.2f"|format(worker.outside_work_bonus) }} دج</span>
+        </div>
+        <div class="flex justify-between items-center p-3 rounded-lg bg-purple-50 border border-purple-100">
+          <span class="text-gray-700 font-medium">التحفيزات:</span>
+          <span class="font-bold text-purple-600">+{{ "%.2f"|format(worker.incentives) }} دج</span>
+        </div>
+      </div>
+
+      <!-- الإجمالي المستحق -->
+      <div class="border-t pt-4 mt-2 px-2">
+        <div class="flex justify-between items-center mb-4 bg-gradient-to-r from-gray-50 to-white p-4 rounded-lg border">
+          <div>
+            <span class="font-semibold text-gray-900 text-lg">المستحق الحالي:</span>
+            <div class="text-xs text-gray-500 mt-1">
+              منذ {{ (now.date() - worker.start_date).days }} يوم
+            </div>
+          </div>
+          <span class="text-xl font-bold {% if worker.total_salary > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+            {{ "%.2f"|format(worker.total_salary) }} دج
+          </span>
+        </div>
+
+        <!-- أزرار العمليات الرئيسية -->
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <button onclick="showWorkerManagement({{ worker.id }})" class="btn-info text-sm py-2 flex items-center justify-center gap-1">
+            <i class="fas fa-cog"></i>
+            إدارة الحساب
+          </button>
+          <button onclick="editWorker({{ worker.id }})" class="btn-primary text-sm py-2 flex items-center justify-center gap-1">
+            <i class="fas fa-edit"></i>
+            تعديل البيانات
+          </button>
+          <button onclick="showWorkerHistory({{ worker.id }})" class="btn-success text-sm py-2 flex items-center justify-center gap-1">
+            <i class="fas fa-history"></i>
+            السجل الكامل
+          </button>
+          <button onclick="printWorkerReport({{ worker.id }})" class="btn-warning text-sm py-2 flex items-center justify-center gap-1">
+            <i class="fas fa-print"></i>
+            طباعة التقرير
+          </button>
+        </div>
+
+        <!-- أزرار الدفع والحالة -->
+        <div class="flex gap-2">
+          {% if worker.is_active and worker.total_salary > 0 %}
+          <button onclick="paySalary({{ worker.id }}, '{{ worker.name }}', {{ worker.total_salary }})" 
+                  class="btn-success flex-1 text-sm py-2 flex items-center justify-center gap-1">
+            <i class="fas fa-money-bill-wave"></i>
+            دفع الراتب
+          </button>
+          {% else %}
+          <button class="btn-secondary flex-1 text-sm py-2 flex items-center justify-center gap-1 opacity-50 cursor-not-allowed">
+            <i class="fas fa-money-bill-wave"></i>
+            دفع الراتب
+          </button>
+          {% endif %}
+          
+          {% if worker.is_active %}
+          <button onclick="toggleWorkerStatus({{ worker.id }}, 'freeze')" class="btn-danger text-sm py-2 px-3 flex items-center justify-center gap-1">
+            <i class="fas fa-pause"></i>
+            تجميد
+          </button>
+          {% else %}
+          <button onclick="toggleWorkerStatus({{ worker.id }}, 'activate')" class="btn-success text-sm py-2 px-3 flex items-center justify-center gap-1">
+            <i class="fas fa-play"></i>
+            تفعيل
+          </button>
+          {% endif %}
+          
+          <button onclick="deleteWorker({{ worker.id }}, '{{ worker.name }}')" class="btn-danger text-sm py-2 px-3 flex items-center justify-center">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <!-- حالة عدم وجود عمال -->
+    <div class="col-span-3">
+      <div class="card p-12 text-center">
+        <div class="flex flex-col items-center justify-center">
+          <i class="fas fa-users text-6xl text-gray-300 mb-4"></i>
+          <h3 class="text-xl font-semibold text-gray-500 mb-2">لا توجد عمال مسجلين</h3>
+          <p class="text-gray-400 mb-6">ابدأ بإضافة أول عامل إلى النظام</p>
+          <button onclick="showModal('addWorkerModal')" class="btn-primary flex items-center gap-2">
+            <i class="fas fa-user-plus"></i>
+            إضافة أول عامل
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ========== النوافذ المنبثقة ========== -->
+
+<!-- نافذة إضافة/تعديل عامل -->
+<div id="addWorkerModal" class="modal">
+  <div class="modal-content max-w-2xl">
+    <div class="modal-header">
+      <h3 id="addWorkerModalTitle">👤 إضافة عامل جديد</h3>
+      <button type="button" onclick="hideModal('addWorkerModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <form id="workerForm" method="POST" action="{{ url_for('add_worker') }}">
+      <div class="modal-body">
+        <div class="space-y-4">
+          <!-- المعلومات الأساسية -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل *</label>
+              <input type="text" name="name" required class="form-input" placeholder="أدخل الاسم الكامل للعامل">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">📞 رقم الهاتف *</label>
+              <input type="tel" name="phone" required class="form-input" placeholder="+213 XXX XX XX XX">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">🏠 العنوان</label>
+              <input type="text" name="address" class="form-input" placeholder="الولاية والبلدية">
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">رقم بطاقة التعريف</label>
+              <input type="text" name="id_card" class="form-input" placeholder="رقم البطاقة الوطني">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">📅 تاريخ بداية العمل *</label>
+              <input type="date" name="start_date" required class="form-input" id="startDateInput">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">💰 الراتب الشهري (دج) *</label>
+              <input type="number" step="0.01" name="monthly_salary" required class="form-input" placeholder="0.00" min="0">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" onclick="hideModal('addWorkerModal')" class="btn-secondary">
+          إلغاء
+        </button>
+        <button type="submit" class="btn-success">
+          <i class="fas fa-save ml-2"></i>
+          حفظ العامل
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- نافذة إدارة العامل -->
+<div id="workerManagementModal" class="modal">
+  <div class="modal-content max-w-4xl">
+    <div class="modal-header">
+      <h3>⚙️ إدارة حساب العامل - <span id="managementWorkerName"></span></h3>
+      <button type="button" onclick="hideModal('workerManagementModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-blue-600">الراتب الأساسي: <span id="managementBaseSalary" class="font-bold"></span></div>
+            <div class="text-sm text-blue-600 mt-1">المستحق الحالي: <span id="managementCurrentSalary" class="font-bold"></span></div>
+            <div class="text-sm text-blue-600 mt-1">أيام العمل: <span id="managementWorkDays" class="font-bold"></span> يوم</div>
+          </div>
+          <button onclick="showWorkerHistory(currentManagementWorkerId)" class="btn-info text-sm">
+            <i class="fas fa-history ml-2"></i>
+            عرض السجل الكامل
+          </button>
+        </div>
+      </div>
+      
+      <div id="workerManagementContent">
+        <!-- سيتم تحميل المحتوى هنا عبر JavaScript -->
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" onclick="hideModal('workerManagementModal')" class="btn-primary">
+        إغلاق
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة دفع الراتب -->
+<div id="paySalaryModal" class="modal">
+  <div class="modal-content max-w-md">
+    <div class="modal-header">
+      <h3>💰 دفع راتب العامل</h3>
+      <button type="button" onclick="hideModal('paySalaryModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <form id="paySalaryForm">
+        <div id="paySalaryContent">
+          <!-- سيتم تحميل المحتوى هنا عبر JavaScript -->
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة سجل العامل -->
+<div id="workerHistoryModal" class="modal">
+  <div class="modal-content max-w-4xl">
+    <div class="modal-header">
+      <h3>📋 السجل الكامل للعامل - <span id="historyWorkerName"></span></h3>
+      <button type="button" onclick="hideModal('workerHistoryModal')" class="modal-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div id="workerHistoryContent">
+        <!-- سيتم تحميل المحتوى هنا عبر JavaScript -->
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" onclick="hideModal('workerHistoryModal')" class="btn-primary">
+        إغلاق
+      </button>
+      <button onclick="printWorkerReport(currentHistoryWorkerId)" class="btn-success">
+        <i class="fas fa-print ml-2"></i>
+        طباعة التقرير
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+// المتغيرات العامة
+let currentManagementWorkerId = null;
+let currentHistoryWorkerId = null;
+let currentEditWorkerId = null;
+let currentPaymentData = null;
+
+// دالة إظهار وإخفاء المودال
+function showModal(modalId) {
+    document.getElementById(modalId).classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function hideModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    document.body.style.overflow = 'auto';
+    if (modalId === 'addWorkerModal') {
+        resetWorkerForm();
+    }
+}
+
+// إعادة تعيين نموذج إضافة العامل
+function resetWorkerForm() {
+    const form = document.getElementById('workerForm');
+    if (form) {
+        form.reset();
+        form.action = "{{ url_for('add_worker') }}";
+        document.getElementById('addWorkerModalTitle').textContent = '👤 إضافة عامل جديد';
+        document.querySelector('#addWorkerModal button[type="submit"]').innerHTML = '<i class="fas fa-save ml-2"></i> حفظ العامل';
+        currentEditWorkerId = null;
+    }
+    
+    // تعيين تاريخ اليوم كقيمة افتراضية
+    const today = new Date().toISOString().split('T')[0];
+    const startDateInput = document.getElementById('startDateInput');
+    if (startDateInput) {
+        startDateInput.value = today;
+    }
+}
+
+// دوال البحث والتصفية
+function filterWorkers(filter) {
+    const cards = document.querySelectorAll('#workersGrid > div.worker-card');
+    cards.forEach(card => {
+        const isActive = card.getAttribute('data-worker-is-active') === 'True';
+        
+        switch(filter) {
+            case 'all':
+                card.style.display = 'block';
+                break;
+            case 'active':
+                card.style.display = isActive ? 'block' : 'none';
+                break;
+            case 'frozen':
+                card.style.display = !isActive ? 'block' : 'none';
+                break;
+        }
+    });
+}
+
+// البحث الفوري
+document.getElementById('searchInput')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const cards = document.querySelectorAll('#workersGrid > div.worker-card');
+    
+    cards.forEach(card => {
+        const workerName = card.getAttribute('data-worker-name').toLowerCase();
+        const workerPhone = card.getAttribute('data-worker-phone').toLowerCase();
+        const workerIdCard = card.getAttribute('data-worker-id-card').toLowerCase();
+        
+        const matches = workerName.includes(searchTerm) || 
+                       workerPhone.includes(searchTerm) || 
+                       workerIdCard.includes(searchTerm);
+        
+        card.style.display = matches ? 'block' : 'none';
+    });
+});
+
+// دالة إدارة العامل
+function showWorkerManagement(workerId) {
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    if (workerRow) {
+        currentManagementWorkerId = workerId;
+        const workerName = workerRow.getAttribute('data-worker-name');
+        const monthlySalary = workerRow.getAttribute('data-worker-monthly-salary');
+        const totalSalary = workerRow.getAttribute('data-worker-total-salary');
+        const startDate = workerRow.getAttribute('data-worker-start-date');
+        
+        // حساب أيام العمل
+        const start = new Date(startDate);
+        const today = new Date();
+        const workDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+        
+        // تحديث شريط المعلومات
+        document.getElementById('managementWorkerName').textContent = workerName;
+        document.getElementById('managementBaseSalary').textContent = parseFloat(monthlySalary).toFixed(2) + ' دج';
+        document.getElementById('managementCurrentSalary').textContent = parseFloat(totalSalary).toFixed(2) + ' دج';
+        document.getElementById('managementWorkDays').textContent = workDays;
+        
+        // محتوى نافذة الإدارة
+        const content = `
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- تسجيل غياب -->
+                    <div class="card p-4">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <i class="fas fa-user-slash text-red-500"></i>
+                            تسجيل غياب
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">نوع الغياب</label>
+                                <select class="form-select text-sm" id="absenceType">
+                                    <option value="full">يوم كامل</option>
+                                    <option value="half">نصف يوم</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">ملاحظات</label>
+                                <textarea class="form-input text-sm" id="absenceNotes" rows="2" placeholder="سبب الغياب..."></textarea>
+                            </div>
+                            <button onclick="recordAbsence(${workerId})" class="w-full btn-warning text-sm py-2">
+                                <i class="fas fa-save ml-2"></i>
+                                تسجيل الغياب
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- تسجيل عمل خارجي -->
+                    <div class="card p-4">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <i class="fas fa-hard-hat text-blue-500"></i>
+                            عمل خارج الورشة
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">عدد الأيام</label>
+                                <input type="number" class="form-input text-sm" value="1" min="1" id="outsideDays">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">المبلغ/اليوم (دج)</label>
+                                <input type="number" step="0.01" class="form-input text-sm" placeholder="0.00" id="outsideBonusRate">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">ملاحظات</label>
+                                <textarea class="form-input text-sm" id="outsideNotes" rows="2" placeholder="تفاصيل العمل الخارجي..."></textarea>
+                            </div>
+                            <button onclick="recordOutsideWork(${workerId})" class="w-full btn-info text-sm py-2">
+                                <i class="fas fa-save ml-2"></i>
+                                تسجيل عمل خارجي
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- تسجيل تسبيق -->
+                    <div class="card p-4">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <i class="fas fa-hand-holding-usd text-orange-500"></i>
+                            تسجيل تسبيق
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">المبلغ (دج)</label>
+                                <input type="number" step="0.01" class="form-input text-sm" placeholder="0.00" id="advanceAmount">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">ملاحظات</label>
+                                <textarea class="form-input text-sm" id="advanceNotes" rows="2" placeholder="سبب التسبيق..."></textarea>
+                            </div>
+                            <button onclick="recordAdvance(${workerId})" class="w-full btn-danger text-sm py-2">
+                                <i class="fas fa-save ml-2"></i>
+                                تسجيل تسبيق
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- تسجيل تحفيز -->
+                    <div class="card p-4">
+                        <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <i class="fas fa-gift text-purple-500"></i>
+                            تسجيل تحفيز
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">المبلغ (دج)</label>
+                                <input type="number" step="0.01" class="form-input text-sm" placeholder="0.00" id="incentiveAmount">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-700 mb-1">ملاحظات</label>
+                                <textarea class="form-input text-sm" id="incentiveNotes" rows="2" placeholder="سبب التحفيز..."></textarea>
+                            </div>
+                            <button onclick="recordIncentive(${workerId})" class="w-full btn-success text-sm py-2">
+                                <i class="fas fa-save ml-2"></i>
+                                تسجيل تحفيز
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- خصم ساعات التأخر -->
+                <div class="card p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <i class="fas fa-clock text-yellow-500"></i>
+                        خصم ساعات التأخر
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-700 mb-1">عدد الساعات</label>
+                            <input type="number" step="0.5" class="form-input text-sm" value="0" min="0" id="lateHours">
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="recordLateHours(${workerId})" class="w-full btn-warning text-sm py-2">
+                                <i class="fas fa-save ml-2"></i>
+                                تسجيل التأخر
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('workerManagementContent').innerHTML = content;
+        showModal('workerManagementModal');
+    }
+}
+
+// ========== دوال التسجيل ==========
+
+function recordAbsence(workerId) {
+    const type = document.getElementById('absenceType').value;
+    const notes = document.getElementById('absenceNotes').value;
+    
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append('notes', notes);
+    
+    fetch(`/workers/record_absence/${workerId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في تسجيل الغياب');
+    });
+}
+
+function recordOutsideWork(workerId) {
+    const days = document.getElementById('outsideDays').value;
+    const rate = document.getElementById('outsideBonusRate').value;
+    const notes = document.getElementById('outsideNotes').value;
+    
+    if (!days || !rate) {
+        showToast('error', 'يرجى إدخال عدد الأيام والمبلغ');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('days', days);
+    formData.append('bonus_per_day', rate);
+    formData.append('notes', notes);
+    
+    fetch(`/workers/record_outside_work/${workerId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في تسجيل العمل الخارجي');
+    });
+}
+
+function recordAdvance(workerId) {
+    const amount = document.getElementById('advanceAmount').value;
+    const notes = document.getElementById('advanceNotes').value;
+    
+    if (!amount) {
+        showToast('error', 'يرجى إدخال المبلغ');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('amount', amount);
+    formData.append('notes', notes);
+    
+    fetch(`/workers/record_advance/${workerId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في تسجيل التسبيق');
+    });
+}
+
+function recordIncentive(workerId) {
+    const amount = document.getElementById('incentiveAmount').value;
+    const notes = document.getElementById('incentiveNotes').value;
+    
+    if (!amount) {
+        showToast('error', 'يرجى إدخال المبلغ');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('amount', amount);
+    formData.append('notes', notes);
+    
+    fetch(`/workers/record_incentive/${workerId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في تسجيل التحفيز');
+    });
+}
+
+function recordLateHours(workerId) {
+    const hours = document.getElementById('lateHours').value;
+    
+    if (!hours || hours == 0) {
+        showToast('error', 'يرجى إدخال عدد الساعات');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('hours', hours);
+    
+    fetch(`/workers/record_late_hours/${workerId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', 'خطأ: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'حدث خطأ في تسجيل التأخر');
+    });
+}
+
+// دالة إظهار الرسائل الفورية
+function showToast(type, message) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-semibold z-50 transition-all duration-300 ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// دالة تعديل العامل
+function editWorker(workerId) {
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    if (workerRow) {
+        currentEditWorkerId = workerId;
+        
+        // استخدام البيانات من السمات data-*
+        document.querySelector('#addWorkerModal input[name="name"]').value = workerRow.getAttribute('data-worker-name');
+        document.querySelector('#addWorkerModal input[name="phone"]').value = workerRow.getAttribute('data-worker-phone');
+        document.querySelector('#addWorkerModal input[name="address"]').value = workerRow.getAttribute('data-worker-address') || '';
+        document.querySelector('#addWorkerModal input[name="id_card"]').value = workerRow.getAttribute('data-worker-id-card');
+        document.querySelector('#addWorkerModal input[name="start_date"]').value = workerRow.getAttribute('data-worker-start-date');
+        document.querySelector('#addWorkerModal input[name="monthly_salary"]').value = workerRow.getAttribute('data-worker-monthly-salary');
+        
+        // تغيير نص المودال
+        document.getElementById('addWorkerModalTitle').textContent = '✏️ تعديل بيانات العامل';
+        document.querySelector('#addWorkerModal button[type="submit"]').innerHTML = '<i class="fas fa-save ml-2"></i> حفظ التعديلات';
+        
+        // تغيير action الخاص بالنموذج
+        const form = document.getElementById('workerForm');
+        form.action = `/workers/edit/${workerId}`;
+        
+        showModal('addWorkerModal');
+    }
+}
+
+// دالة دفع الراتب المحسنة
+function paySalary(workerId, workerName, salaryAmount) {
+    const content = `
+        <div class="space-y-4">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-user-circle text-green-600 text-2xl"></i>
+                    <div>
+                        <div class="font-semibold text-green-800">${workerName}</div>
+                        <div class="text-green-600">المبلغ المستحق: <span class="font-bold">${salaryAmount.toFixed(2)} دج</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">💰 المبلغ المدفوع *</label>
+                <input type="number" step="0.01" value="${salaryAmount.toFixed(2)}" class="form-input" id="paidAmount" required>
+                <div class="text-xs text-gray-500 mt-1">سيتم بدء فترة عمل جديدة من تاريخ اليوم</div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">💳 طريقة الدفع</label>
+                <select class="form-select" id="paymentMethod">
+                    <option value="نقدي">نقدي</option>
+                    <option value="تحويل بنكي">تحويل بنكي</option>
+                    <option value="شيك">شيك</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">💬 ملاحظات</label>
+                <textarea class="form-input" id="paymentNotes" rows="2" placeholder="ملاحظات حول عملية الدفع..."></textarea>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center gap-2 text-blue-800">
+                    <i class="fas fa-info-circle"></i>
+                    <span class="text-sm">سيتم بدء فترة عمل جديدة من تاريخ اليوم وإعادة تعيين جميع الحسابات</span>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="hideModal('paySalaryModal')" class="flex-1 btn-secondary">
+                    إلغاء
+                </button>
+                <button onclick="confirmPayment(${workerId})" class="flex-1 btn-success">
+                    <i class="fas fa-check ml-2"></i>
+                    تأكيد الدفع وبدء فترة جديدة
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('paySalaryContent').innerHTML = content;
+    showModal('paySalaryModal');
+}
+
+// دالة تأكيد الدفع المحسنة
+function confirmPayment(workerId) {
+    const paidAmount = parseFloat(document.getElementById('paidAmount').value);
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const paymentNotes = document.getElementById('paymentNotes').value;
+    
+    if (!paidAmount || paidAmount <= 0) {
+        showToast('error', 'يرجى إدخال مبلغ صحيح');
+        return;
+    }
+    
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    const currentSalary = parseFloat(workerRow.getAttribute('data-worker-total-salary'));
+    
+    if (paidAmount > currentSalary) {
+        showToast('error', `المبلغ يتجاوز المستحق (${currentSalary.toFixed(2)} دج)`);
+        return;
+    }
+    
+    if (confirm(`هل تريد تأكيد دفع مبلغ ${paidAmount.toFixed(2)} دج؟\n\nسيتم بدء فترة عمل جديدة من تاريخ اليوم.`)) {
+        const formData = new FormData();
+        formData.append('amount', paidAmount);
+        formData.append('payment_method', paymentMethod);
+        formData.append('notes', paymentNotes);
+        
+        fetch(`/workers/pay_salary/${workerId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                hideModal('paySalaryModal');
+                
+                // إعادة تحميل الصفحة لتحديث البيانات
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showToast('error', 'خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'حدث خطأ في عملية الدفع');
+        });
+    }
+}
+
+// دالة تأكيد الدفع المحسنة مع التحديث الفوري
+function confirmPayment(workerId) {
+    const paidAmount = parseFloat(document.getElementById('paidAmount').value);
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const paymentNotes = document.getElementById('paymentNotes').value;
+    
+    if (!paidAmount || paidAmount <= 0) {
+        showToast('error', 'يرجى إدخال مبلغ صحيح');
+        return;
+    }
+    
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    const currentSalary = parseFloat(workerRow.getAttribute('data-worker-total-salary'));
+    
+    if (paidAmount > currentSalary) {
+        showToast('error', `المبلغ يتجاوز المستحق (${currentSalary.toFixed(2)} دج)`);
+        return;
+    }
+    
+    if (confirm(`هل تريد تأكيد دفع مبلغ ${paidAmount.toFixed(2)} دج؟\n\nسيتم إعادة تعيين جميع الحسابات للعامل.`)) {
+        const formData = new FormData();
+        formData.append('amount', paidAmount);
+        formData.append('payment_method', paymentMethod);
+        formData.append('notes', paymentNotes);
+        
+        fetch(`/workers/pay_salary/${workerId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('success', data.message);
+                hideModal('paySalaryModal');
+                
+                // ✅ تحديث فوري للبطاقة قبل إعادة التحميل
+                updateWorkerCardImmediately(workerId, data.new_salary);
+                
+                // ✅ تحديث إجمالي الحقوق
+                updateTotalSalariesImmediately();
+                
+                // إعادة تحميل الصفحة بعد ثانيتين للتأكد
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                showToast('error', 'خطأ: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'حدث خطأ في عملية الدفع');
+        });
+    }
+}
+
+// ✅ تحديث فوري لبطاقة العامل
+function updateWorkerCardImmediately(workerId, newSalary) {
+    const workerCard = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    if (workerCard) {
+        // تحديث السمة data
+        workerCard.setAttribute('data-worker-total-salary', newSalary);
+        
+        // تحديث العرض في البطاقة
+        const salaryElement = workerCard.querySelector('.text-xl.font-bold');
+        if (salaryElement) {
+            salaryElement.textContent = `${newSalary.toFixed(2)} دج`;
+            
+            // تحديث اللون حسب القيمة
+            if (newSalary > 0) {
+                salaryElement.classList.remove('text-green-600');
+                salaryElement.classList.add('text-red-600');
+            } else {
+                salaryElement.classList.remove('text-red-600');
+                salaryElement.classList.add('text-green-600');
+            }
+        }
+        
+        // تحديث زر الدفع
+        const payButton = workerCard.querySelector('button[onclick*="paySalary"]');
+        if (payButton) {
+            if (newSalary > 0) {
+                payButton.disabled = false;
+                payButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                payButton.setAttribute('onclick', `paySalary(${workerId}, '${workerCard.getAttribute('data-worker-name')}', ${newSalary})`);
+            } else {
+                payButton.disabled = true;
+                payButton.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
+}
+
+// ✅ تحديث فوري لإجمالي الحقوق
+function updateTotalSalariesImmediately() {
+    // إعادة حساب الإجمالي من جميع البطاقات
+    let newTotal = 0;
+    const workerCards = document.querySelectorAll('.worker-card');
+    
+    workerCards.forEach(card => {
+        const salary = parseFloat(card.getAttribute('data-worker-total-salary') || 0);
+        newTotal += salary;
+    });
+    
+    // تحديث الشريط العلوي
+    const totalElement = document.querySelector('.bg-gradient-to-r.from-red-500.to-red-600 .text-2xl');
+    if (totalElement) {
+        totalElement.textContent = `${newTotal.toFixed(2)} `;
+    }
+    
+    console.log(`🔄 إجمالي الحقوق المحدث: ${newTotal.toFixed(2)} دج`);
+}
+
+// دالة عرض إيصال الدفع
+function showPaymentReceipt(printData) {
+    const receiptContent = `
+        <div class="bg-white p-6 rounded-lg border-2 border-green-200">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-green-700">شركة SOFAZI</h2>
+                <p class="text-gray-600">إيصال دفع رواتب</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <strong>اسم العامل:</strong> ${printData.worker_name}
+                </div>
+                <div>
+                    <strong>رقم الهاتف:</strong> ${printData.worker_phone}
+                </div>
+                <div>
+                    <strong>رقم البطاقة:</strong> ${printData.worker_id_card}
+                </div>
+                <div>
+                    <strong>تاريخ الدفع:</strong> ${printData.payment_date}
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                <h3 class="font-semibold text-lg mb-3">تفاصيل الدفع</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span>المبلغ المدفوع:</span>
+                        <span class="font-bold text-green-600">${printData.amount_paid.toFixed(2)} دج</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>طريقة الدفع:</span>
+                        <span>${printData.payment_method}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>الملاحظات:</span>
+                        <span>${printData.notes || "لا توجد"}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-yellow-50 p-4 rounded-lg mb-4">
+                <h3 class="font-semibold text-lg mb-3">ملخص الحساب السابق</h3>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>أيام الغياب: ${printData.old_absences}</div>
+                    <div>أيام العمل الخارجي: ${printData.old_outside_days}</div>
+                    <div>مكافأة العمل الخارجي: ${printData.old_outside_bonus.toFixed(2)} دج</div>
+                    <div>التسبيقات: ${printData.old_advances.toFixed(2)} دج</div>
+                    <div>التحفيزات: ${printData.old_incentives.toFixed(2)} دج</div>
+                    <div>ساعات التأخر: ${printData.old_late_hours}</div>
+                    <div class="col-span-2 border-t mt-2 pt-2">
+                        <strong>الإجمالي المستحق: ${printData.old_total_salary.toFixed(2)} دج</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-6 pt-4 border-t">
+                <p class="text-sm text-gray-500">تم إعادة تعيين جميع الحسابات بنجاح</p>
+                <p class="text-xs text-gray-400 mt-2">${new Date().toLocaleString('ar-EG')}</p>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('paymentReceiptContent').innerHTML = receiptContent;
+    showModal('paymentReceiptModal');
+}
+
+// دالة طباعة إيصال الدفع
+function printPaymentReceipt() {
+    const printWindow = window.open('', '_blank');
+    const printData = currentPaymentData;
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="utf-8" />
+            <title>إيصال دفع - ${printData.worker_name}</title>
+            <style>
+                body { 
+                    font-family: 'Arial', sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background: white;
+                    color: #333;
+                }
+                .receipt {
+                    max-width: 600px;
+                    margin: 0 auto;
+                    border: 2px solid #059669;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 2px dashed #059669;
+                    padding-bottom: 15px;
+                }
+                .header h1 {
+                    color: #059669;
+                    margin: 0;
+                    font-size: 24px;
+                }
+                .header h2 {
+                    color: #666;
+                    margin: 5px 0 0 0;
+                    font-size: 16px;
+                }
+                .details {
+                    margin: 20px 0;
+                }
+                .detail-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 8px;
+                    padding: 5px 0;
+                    border-bottom: 1px dashed #eee;
+                }
+                .section {
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 15px 0;
+                }
+                .section h3 {
+                    margin: 0 0 10px 0;
+                    color: #333;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 5px;
+                }
+                .total {
+                    background: #059669;
+                    color: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    text-align: center;
+                    font-size: 20px;
+                    font-weight: bold;
+                    margin: 20px 0;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    color: #666;
+                    font-size: 12px;
+                    border-top: 1px dashed #ddd;
+                    padding-top: 15px;
+                }
+                @media print {
+                    body { margin: 0; padding: 0; }
+                    .receipt { border: none; box-shadow: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="receipt">
+                <div class="header">
+                    <h1>شركة SOFAZI</h1>
+                    <h2>إيصال دفع رواتب</h2>
+                </div>
+                
+                <div class="details">
+                    <div class="detail-row">
+                        <strong>اسم العامل:</strong> ${printData.worker_name}
+                    </div>
+                    <div class="detail-row">
+                        <strong>رقم الهاتف:</strong> ${printData.worker_phone}
+                    </div>
+                    <div class="detail-row">
+                        <strong>رقم البطاقة:</strong> ${printData.worker_id_card}
+                    </div>
+                    <div class="detail-row">
+                        <strong>تاريخ الدفع:</strong> ${printData.payment_date}
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3>تفاصيل الدفع</h3>
+                    <div class="detail-row">
+                        <span>المبلغ المدفوع:</span>
+                        <strong>${printData.amount_paid.toFixed(2)} دج</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>طريقة الدفع:</span>
+                        <span>${printData.payment_method}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>الملاحظات:</span>
+                        <span>${printData.notes || "لا توجد"}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3>ملخص الحساب السابق</h3>
+                    <div class="detail-row">
+                        <span>أيام الغياب:</span>
+                        <span>${printData.old_absences}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>أيام العمل الخارجي:</span>
+                        <span>${printData.old_outside_days}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>مكافأة العمل الخارجي:</span>
+                        <span>${printData.old_outside_bonus.toFixed(2)} دج</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>التسبيقات:</span>
+                        <span>${printData.old_advances.toFixed(2)} دج</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>التحفيزات:</span>
+                        <span>${printData.old_incentives.toFixed(2)} دج</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>ساعات التأخر:</span>
+                        <span>${printData.old_late_hours}</span>
+                    </div>
+                </div>
+                
+                <div class="total">
+                    الإجمالي المستحق: ${printData.old_total_salary.toFixed(2)} دج
+                </div>
+                
+                <div class="footer">
+                    <p>تم إعادة تعيين جميع الحسابات بنجاح</p>
+                    <p>${new Date().toLocaleString('ar-EG')}</p>
+                </div>
+            </div>
+            
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(() => {
+                        window.close();
+                    }, 1000);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+}
+
+// دالة تجميد/تفعيل العامل
+function toggleWorkerStatus(workerId, action) {
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    const workerName = workerRow.getAttribute('data-worker-name');
+    
+    const message = action === 'freeze' 
+        ? `هل تريد تجميد العامل ${workerName}؟\n\nسيتم إيقاف جميع الحسابات المالية لهذا العامل ولن يدخل في إجمالي حقوق العمال لهذا الشهر.`
+        : `هل تريد تفعيل العامل ${workerName}؟\n\nسيتم تفعيل الحسابات المالية للعامل وسيدخل في إجمالي حقوق العمال.`;
+    
+    if (confirm(message)) {
+        window.location.href = `/workers/toggle_status/${workerId}`;
+    }
+}
+
+// دالة حذف العامل
+function deleteWorker(workerId, workerName) {
+    if (confirm(`هل أنت متأكد من حذف العامل ${workerName}؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+        window.location.href = `/workers/delete/${workerId}`;
+    }
+}
+
+// دالة عرض سجل العامل
+function showWorkerHistory(workerId) {
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    if (workerRow) {
+        currentHistoryWorkerId = workerId;
+        const workerName = workerRow.getAttribute('data-worker-name');
+        
+        document.getElementById('historyWorkerName').textContent = workerName;
+        
+        // جلب بيانات السجل من الخادم
+        fetch(`/workers/history/${workerId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('workerHistoryContent').innerHTML = `
+                        <div class="text-center text-red-600 py-8">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>${data.error}</p>
+                        </div>
+                    `;
+                } else {
+                    let historyHTML = `
+                        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <div class="text-gray-600">الراتب الأساسي</div>
+                                    <div class="font-bold">${data.worker_info.monthly_salary.toFixed(2)} دج</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-600">إجمالي الغيابات</div>
+                                    <div class="font-bold">${data.worker_info.absences} يوم</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-600">إجمالي التسبيقات</div>
+                                    <div class="font-bold">${data.worker_info.advances.toFixed(2)} دج</div>
+                                </div>
+                                <div>
+                                    <div class="text-gray-600">الحالة</div>
+                                    <div class="font-bold ${data.worker_info.is_active ? 'text-green-600' : 'text-red-600'}">
+                                        ${data.worker_info.is_active ? 'نشط' : 'مجمد'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (data.history && data.history.length > 0) {
+                        historyHTML += `
+                            <div class="space-y-3">
+                                <h4 class="font-semibold text-gray-900 border-b pb-2">📜 السجل الزمني</h4>
+                                ${data.history.map(item => `
+                                    <div class="card p-4 border-l-4 ${getHistoryItemColor(item.change_type)}">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <div class="font-semibold text-gray-900">${item.change_type}</div>
+                                                <div class="text-gray-600 text-sm mt-1">${item.details}</div>
+                                                ${item.amount !== 0 ? `
+                                                    <div class="text-sm mt-1 ${item.amount > 0 ? 'text-green-600' : 'text-red-600'}">
+                                                        ${item.amount > 0 ? '+' : ''}${item.amount.toFixed(2)} دج
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                            <div class="text-xs text-gray-500 text-left ml-4">
+                                                ${item.timestamp}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    } else {
+                        historyHTML += `
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-history text-4xl mb-4"></i>
+                                <p>لا توجد سجلات حتى الآن</p>
+                            </div>
+                        `;
+                    }
+                    
+                    document.getElementById('workerHistoryContent').innerHTML = historyHTML;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('workerHistoryContent').innerHTML = `
+                    <div class="text-center text-red-600 py-8">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p>حدث خطأ في تحميل السجل</p>
+                    </div>
+                `;
+            });
+        
+        showModal('workerHistoryModal');
+    }
+}
+
+// دالة للحصول على لون عنصر السجل
+function getHistoryItemColor(type) {
+    const colors = {
+        'راتب': 'border-l-green-500 bg-green-50',
+        'غياب': 'border-l-red-500 bg-red-50',
+        'عمل خارجي': 'border-l-blue-500 bg-blue-50',
+        'تسبيق': 'border-l-orange-500 bg-orange-50',
+        'تحفيز': 'border-l-purple-500 bg-purple-50',
+        'تأخر': 'border-l-yellow-500 bg-yellow-50',
+        'دفع راتب': 'border-l-green-500 bg-green-50',
+        'دفع': 'border-l-green-500 bg-green-50',
+        'تعديل البيانات': 'border-l-blue-500 bg-blue-50',
+        'إضافة عامل': 'border-l-green-500 bg-green-50',
+        'تغيير الحالة': 'border-l-purple-500 bg-purple-50'
+    };
+    return colors[type] || 'border-l-gray-500 bg-gray-50';
+}
+
+// دالة طباعة تقرير العامل
+function printWorkerReport(workerId) {
+    const workerRow = document.querySelector(`.worker-card[data-worker-id="${workerId}"]`);
+    if (!workerRow) {
+        showToast('error', 'لم يتم العثور على بيانات العامل');
+        return;
+    }
+    
+    const workerName = workerRow.getAttribute('data-worker-name');
+    const monthlySalary = parseFloat(workerRow.getAttribute('data-worker-monthly-salary'));
+    const absences = parseFloat(workerRow.getAttribute('data-worker-absences'));
+    const advances = parseFloat(workerRow.getAttribute('data-worker-advances'));
+    const outsideBonus = parseFloat(workerRow.getAttribute('data-worker-outside-work-bonus'));
+    const incentives = parseFloat(workerRow.getAttribute('data-worker-incentives'));
+    const totalSalary = parseFloat(workerRow.getAttribute('data-worker-total-salary'));
+    const lateHours = parseFloat(workerRow.getAttribute('data-worker-late-hours') || 0);
+    const outsideDays = parseInt(workerRow.getAttribute('data-worker-outside-work-days'));
+    
+    const dailySalary = monthlySalary / 30;
+    const absenceDeduction = absences * dailySalary;
+    const lateDeduction = lateHours * 500; // 500 دج لكل ساعة تأخر
+    
+    const printWindow = window.open('', '_blank');
+    
+    // استخدام التاريخ بالإنجليزية
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('en-GB');
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>تقرير العامل - ${workerName}</title>
+            <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+            <style>
+                body { 
+                    font-family: 'Cairo', sans-serif; 
+                    margin: 0; 
+                    padding: 20px; 
+                    background: white;
+                    color: #333;
+                }
+                .report-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: white;
+                }
+                .report-header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }
+                .report-header h1 {
+                    margin: 0;
+                    font-size: 28px;
+                    font-weight: 900;
+                }
+                .report-header .subtitle {
+                    margin-top: 10px;
+                    opacity: 0.9;
+                }
+                .report-body {
+                    padding: 30px;
+                }
+                .section {
+                    margin-bottom: 25px;
+                }
+                .section-title {
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: #667eea;
+                    margin-bottom: 15px;
+                    border-right: 4px solid #667eea;
+                    padding-right: 10px;
+                }
+                .info-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 20px;
+                }
+                .info-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 8px 0;
+                    border-bottom: 1px solid #f0f0f0;
+                }
+                
+                /* بطاقة الحضور والغياب */
+                .attendance-card {
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    border: 1px solid #e9ecef;
+                }
+                .attendance-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 15px;
+                    text-align: center;
+                }
+                .attendance-item {
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                .attendance-value {
+                    font-size: 24px;
+                    font-weight: bold;
+                    margin: 5px 0;
+                }
+                .attendance-label {
+                    font-size: 14px;
+                    color: #666;
+                }
+                
+                .salary-breakdown {
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }
+                .salary-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 10px 0;
+                    font-size: 16px;
+                }
+                .salary-total {
+                    font-size: 24px;
+                    font-weight: 900;
+                    color: #e74c3c;
+                    text-align: center;
+                    margin-top: 20px;
+                    padding: 15px;
+                    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                    color: white;
+                    border-radius: 10px;
+                }
+                .positive { color: #27ae60; }
+                .negative { color: #e74c3c; }
+                .signature-section {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 30px;
+                    margin-top: 40px;
+                }
+                .signature-box {
+                    text-align: center;
+                    padding: 20px;
+                    border: 2px dashed #bdc3c7;
+                    border-radius: 10px;
+                }
+                @media print {
+                    body { 
+                        background: white !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    .report-container {
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="report-container">
+                <div class="report-header">
+                    <h1>تقرير الأجور الشهرية</h1>
+                    <div class="subtitle">شركة SOFAZI - ${formattedDate}</div>
+                </div>
+                
+                <div class="report-body">
+                    <!-- معلومات العامل -->
+                    <div class="section">
+                        <div class="section-title">معلومات العامل</div>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span>الاسم الكامل:</span>
+                                <span class="font-bold">${workerName}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>رقم الهاتف:</span>
+                                <span>${workerRow.getAttribute('data-worker-phone')}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>رقم البطاقة:</span>
+                                <span>${workerRow.getAttribute('data-worker-id-card') || 'غير محدد'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>تاريخ البدء:</span>
+                                <span>${workerRow.getAttribute('data-worker-start-date')}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- بطاقة الحضور والغياب -->
+                    <div class="section">
+                        <div class="section-title">الحضور والغياب</div>
+                        <div class="attendance-card">
+                            <div class="attendance-grid">
+                                <div class="attendance-item">
+                                    <div class="attendance-value" style="color: #e74c3c;">${absences}</div>
+                                    <div class="attendance-label">أيام الغياب</div>
+                                </div>
+                                <div class="attendance-item">
+                                    <div class="attendance-value" style="color: #3498db;">${outsideDays}</div>
+                                    <div class="attendance-label">أيام العمل الخارجي</div>
+                                </div>
+                                <div class="attendance-item">
+                                    <div class="attendance-value" style="color: #f39c12;">${lateHours}</div>
+                                    <div class="attendance-label">ساعات التأخر</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- تفاصيل الراتب -->
+                    <div class="section">
+                        <div class="section-title">تفاصيل الراتب</div>
+                        <div class="salary-breakdown">
+                            <div class="salary-item">
+                                <span>الراتب الأساسي:</span>
+                                <span class="positive">+${monthlySalary.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-item">
+                                <span>خصم الغيابات (${absences} يوم):</span>
+                                <span class="negative">-${absenceDeduction.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-item">
+                                <span>مكافأة العمل الخارجي:</span>
+                                <span class="positive">+${outsideBonus.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-item">
+                                <span>التحفيزات والمكافآت:</span>
+                                <span class="positive">+${incentives.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-item">
+                                <span>التسبيقات:</span>
+                                <span class="negative">-${advances.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-item">
+                                <span>خصم التأخر (${lateHours} ساعة):</span>
+                                <span class="negative">-${lateDeduction.toFixed(2)} دج</span>
+                            </div>
+                            <div class="salary-total">
+                                الصافي المستحق: ${totalSalary.toFixed(2)} دج
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- التوقيعات -->
+                    <div class="signature-section">
+                        <div class="signature-box">
+                            <div>توقيع العامل</div>
+                            <div style="margin-top: 60px; border-top: 1px solid #333; width: 200px; margin: 40px auto 0;"></div>
+                        </div>
+                        <div class="signature-box">
+                            <div>توقيع المسؤول</div>
+                            <div style="margin-top: 60px; border-top: 1px solid #333; width: 200px; margin: 40px auto 0;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                window.onload = function() {
+                    window.print();
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+}
+
+// تهيئة الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // تعيين تاريخ اليوم كقيمة افتراضية
+    const today = new Date().toISOString().split('T')[0];
+    const startDateInput = document.getElementById('startDateInput');
+    if (startDateInput) {
+        startDateInput.value = today;
+    }
+});
+
+// إغلاق المودال عند النقر خارج المحتوى
+document.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        hideModal(event.target.id);
+    }
+});
+
+// نسخ النص للحافظة
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('success', 'تم نسخ الرقم!');
+    });
+}
+</script>
+
+<style>
+/* تنسيقات البطاقات */
+.worker-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.worker-card:hover {
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+}
+
+/* تأثير التجميد */
+.frozen-card {
+    opacity: 0.7;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px dashed #6c757d;
+    position: relative;
+}
+
+.frozen-card::before {
+    content: "🔄 مجمد";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    background: rgba(108, 117, 125, 0.9);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    z-index: 10;
+    font-size: 18px;
+}
+
+/* تنسيق رأس البطاقة */
+.card-header {
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* أزرار مخصصة */
+.btn-primary { 
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-success { 
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-danger { 
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-warning { 
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-info { 
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover { background: linear-gradient(135deg, #2563eb, #1e40af); transform: translateY(-2px); }
+.btn-success:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-2px); }
+.btn-danger:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); transform: translateY(-2px); }
+.btn-warning:hover { background: linear-gradient(135deg, #d97706, #b45309); transform: translateY(-2px); }
+.btn-info:hover { background: linear-gradient(135deg, #0891b2, #0e7490); transform: translateY(-2px); }
+.btn-secondary:hover { background: #4b5563; transform: translateY(-2px); }
+
+/* تأثيرات الأزرار */
+button {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* تخصيص البادجات */
+.badge {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.badge-success { background: #10b981; color: white; }
+.badge-danger { background: #ef4444; color: white; }
+.badge-warning { background: #f59e0b; color: white; }
+.badge-info { background: #3b82f6; color: white; }
+
+/* تنسيقات النوافذ المنبثقة */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* تخصيص شريط التمرير */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 0 12px 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* تحسين التنسيق للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .worker-card {
+        margin: 0 8px;
+    }
+    
+    .modal-content {
+        margin: 20px;
+        width: calc(100% - 40px);
+    }
+    
+    .grid-cols-2, .grid-cols-3, .grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* تحسينات للعرض على الجوال */
+@media (max-width: 640px) {
+    .card-header {
+        padding: 16px;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    .btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info, .btn-secondary {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,688 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="max-w-full">
+  <!-- ======================= -->
+  <!-- 🎯 قسم رأس الصفحة -->
+  <!-- ======================= -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+    <div>
+      <h2 class="text-3xl font-bold text-gray-900">📦 الطلبيات — <span class="text-blue-700">SOFAZI</span></h2>
+      <p class="text-sm text-gray-500">إدارة الطلبات، الفوترة، والسجل الداخلي.</p>
+    </div>
+
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="relative">
+        <input id="searchInput" type="text" placeholder="🔍 بحث بالاسم، الهاتف، الولاية، المنتج..." 
+               class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-72">
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </span>
+      </div>
+
+      <select id="statusFilter" class="py-2 px-3 rounded-lg border border-gray-200 bg-white text-sm">
+        <option value="">كل الحالات</option>
+        {% for s in statuses %}
+          <option value="{{ s.name }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+
+      <a href="{{ url_for('orders', show_paid=not show_paid) }}" 
+         class="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm hover:bg-gray-50 transition-colors">
+        <i class="fas {% if show_paid %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+        {{ 'إخفاء المدفوعة' if show_paid else 'إظهار المدفوعة' }}
+      </a>
+    </div>
+    
+    <div class="flex justify-center">
+      <button id="btnAdd" class="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105">
+        <i class="fa-solid fa-plus text-lg"></i> 
+        <span class="font-semibold">إضافة طلبية جديدة</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ======================= -->
+  <!-- 📊 قسم جدول الطلبيات -->
+  <!-- ======================= -->
+  <div class="bg-white rounded-2xl shadow-md overflow-x-auto">
+    <table class="w-full text-sm text-right">
+      <thead class="bg-gray-100 border-b">
+        <tr class="text-gray-700 font-medium">
+          <th class="p-3">#</th>
+          <th class="p-3">الاسم</th>
+          <th class="p-3">الهاتف</th>
+          <th class="p-3">الولاية</th>
+          <th class="p-3">المنتج</th>
+          <th class="p-3">المدفوع</th>
+          <th class="p-3">الإجمالي</th>
+          <th class="p-3">المتبقي</th>
+          <th class="p-3">الحالة</th>
+          <th class="p-3">الملاحظات</th>
+          <th class="p-3">العمليات</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTable">
+        {% for o in orders %}
+        <tr class="border-b hover:bg-gray-50 transition shadow-sm" data-status="{{ o.status.name if o.status else '' }}">
+          <td class="p-3 text-gray-700">{{ o.id }}</td>
+          <td class="p-3 font-medium text-gray-900">{{ o.name }}</td>
+
+          <td class="p-3">
+            {% if o.phones and o.phones|length > 0 %}
+              {% set phone = o.phones[0] %}
+              <div class="relative">
+                <button class="phone-btn text-blue-600 hover:text-blue-800 font-medium transition-colors" 
+                        data-phone="{{ phone.number }}"
+                        onclick="PhoneManager.showPhoneOptions('{{ phone.number }}', this)">
+                  {{ phone.number }}
+                </button>
+                
+                <div id="phoneOptions-{{ phone.number|replace('+', '')|replace(' ', '') }}" 
+                     class="hidden absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <div class="p-2 space-y-1">
+                    <a href="tel:{{ phone.number }}" 
+                       class="flex items-center gap-3 w-full px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors">
+                      <i class="fas fa-phone text-green-600 text-xs"></i>
+                      <span>الاتصال</span>
+                    </a>
+                    
+                    <a href="https://wa.me/{{ phone.number|replace('+', '')|replace(' ', '') }}" 
+                       target="_blank"
+                       class="flex items-center gap-3 w-full px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors">
+                      <i class="fab fa-whatsapp text-green-600 text-xs"></i>
+                      <span>مراسلة واتساب</span>
+                    </a>
+                    
+                    <button onclick="PhoneManager.copyPhoneNumber('{{ phone.number }}')"
+                            class="flex items-center gap-3 w-full px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
+                      <i class="fas fa-copy text-blue-600 text-xs"></i>
+                      <span>نسخ الرقم</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            {% else %}
+              <span class="text-gray-400">لا توجد أرقام</span>
+            {% endif %}
+          </td>
+
+          <td class="p-3 text-gray-700">{{ o.wilaya }}</td>
+          <td class="p-3 text-gray-700">{{ o.product }}</td>
+          <td class="p-3 text-gray-800">{{ "%.2f"|format(o.paid) }}</td>
+          <td class="p-3 text-gray-800">{{ "%.2f"|format(o.total) }}</td>
+          <td class="p-3 {% if o.remaining > 0 %}text-red-600{% else %}text-green-600{% endif %} font-semibold">
+            {{ "%.2f"|format(o.remaining) }}
+          </td>
+
+          <td class="p-3">
+            {% if o.status %}
+              <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    style="background: {{ o.status.color }}22; color: {{ o.status.color }}">
+                {{ o.status.name }}
+              </span>
+            {% else %}
+              <span class="inline-block px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700">بدون حالة</span>
+            {% endif %}
+          </td>
+
+          <td class="p-3 text-center">
+            {% if o.note %}
+              <button class="edit-note text-blue-600 hover:text-blue-800 text-sm font-bold" 
+                      title="الملاحظات" 
+                      data-note="{{ o.note }}"
+                      onclick="NotesManager.showNotes('{{ o.note }}')">
+                📝
+              </button>
+            {% else %}
+              <span class="text-gray-400">-</span>
+            {% endif %}
+          </td>
+
+          <td class="p-3 flex gap-2">
+            <button class="edit-btn text-blue-600 hover:text-blue-800" 
+                    title="تعديل"
+                    data-id="{{ o.id }}"
+                    data-name="{{ o.name }}"
+                    data-wilaya="{{ o.wilaya }}"
+                    data-product="{{ o.product }}"
+                    data-paid="{{ '%.2f'|format(o.paid) }}"
+                    data-total="{{ '%.2f'|format(o.total) }}"
+                    data-note="{{ o.note }}"
+                    data-phones="{{ o.phones[0].number if o.phones else '' }}"
+                    data-status="{{ o.status.id if o.status else '' }}"
+                    onclick="OrderManager.editOrder(this)">
+              <i class="fa-solid fa-pen-to-square text-lg"></i>
+            </button>
+
+            <button class="history-btn text-gray-600 hover:text-gray-800" 
+                    title="السجل والدفعات" 
+                    data-id="{{ o.id }}"
+                    onclick="HistoryManager.showHistory({{ o.id }})">
+              <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+            </button>
+
+            {% if o.remaining > 0 %}
+            <button class="payment-btn text-green-600 hover:text-green-800" 
+                    title="إضافة دفعة" 
+                    data-id="{{ o.id }}" 
+                    data-remaining="{{ o.remaining }}"
+                    onclick="PaymentManager.showPaymentModal({{ o.id }}, {{ o.remaining }})">
+              <i class="fa-solid fa-money-bill-wave text-lg"></i>
+            </button>
+            {% endif %}
+
+            <a href="{{ url_for('delete_order', id=o.id) }}"
+               class="text-red-600 hover:text-red-800"
+               title="حذف"
+               onclick="return confirm('هل أنت متأكد من حذف هذه الطلبية؟');">
+              <i class="fa-solid fa-trash text-lg"></i>
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" class="p-6 text-center text-gray-500">لا توجد طلبيات بعد</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ======================= -->
+<!-- 🎫 قسم النماذج المنبثقة -->
+<!-- ======================= -->
+
+<!-- نموذج إضافة/تعديل طلبية -->
+<div id="orderModal" class="modal">
+  <div class="modal-content w-full max-w-2xl">
+    <form id="orderForm" method="POST" action="{{ url_for('add_order') }}" class="p-6 space-y-4">
+      <div class="flex items-center justify-between mb-4 border-b pb-3">
+        <h3 id="modalTitle" class="text-lg font-bold text-gray-900">➕ إضافة طلبية جديدة</h3>
+        <button type="button" onclick="ModalManager.hideModal('orderModal')" class="text-gray-500 hover:text-gray-800 text-xl">✖</button>
+      </div>
+
+      <input type="hidden" name="id" id="order_id">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="block text-sm text-gray-700 mb-1">الاسم *</label><input name="name" id="order_name" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">رقم الهاتف *</label><input type="tel" name="phones" id="order_phone" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="+213 XXX XX XX XX"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">الولاية *</label><input name="wilaya" id="order_wilaya" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">المنتج *</label><input name="product" id="order_product" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">المدفوع *</label><input name="paid" id="order_paid" type="number" step="0.01" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value="0"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">الإجمالي *</label><input name="total" id="order_total" type="number" step="0.01" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value="0"></div>
+        <div class="md:col-span-2"><label class="block text-sm text-gray-700 mb-1">الملاحظات</label><textarea name="note" id="order_note" rows="3" class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"></textarea></div>
+        <div class="md:col-span-2"><label class="block text-sm text-gray-700 mb-1">الحالة</label>
+          <select name="status" id="order_status" class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+            <option value="">-- اختر الحالة --</option>
+            {% for s in statuses %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button type="button" onclick="ModalManager.hideModal('orderModal')" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">إلغاء</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">حفظ الطلبية</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- نموذج الملاحظات -->
+<div id="notesModal" class="modal">
+  <div class="modal-content w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">📝 ملاحظات الطلبية</h3>
+        <button type="button" onclick="ModalManager.hideModal('notesModal')" class="text-gray-500 hover:text-gray-800 text-xl">✖</button>
+      </div>
+      <div id="notesContent" class="max-h-60 overflow-y-auto"></div>
+      <div class="mt-6 flex justify-end">
+        <button type="button" onclick="ModalManager.hideModal('notesModal')" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- نموذج السجل والدفعات -->
+<div id="historyModal" class="modal">
+  <div class="modal-content w-full max-w-4xl">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">🕒 سجل الطلبية والدفعات المالية</h3>
+        <button type="button" onclick="ModalManager.hideModal('historyModal')" class="text-gray-500 hover:text-gray-800 text-xl">✖</button>
+      </div>
+      
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <h4 class="font-semibold text-gray-900 mb-3">💰 ملخص المدفوعات</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm" id="paymentSummary"></div>
+      </div>
+      
+      <div id="historyContent" class="max-h-96 overflow-y-auto space-y-3"></div>
+      
+      <div class="mt-6 flex justify-end gap-3">
+        <button type="button" onclick="ModalManager.hideModal('historyModal')" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">إغلاق</button>
+        <button type="button" id="addPaymentBtn" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors" onclick="PaymentManager.showPaymentFromHistory()">إضافة دفعة</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- نموذج إضافة دفعة -->
+<div id="paymentModal" class="modal">
+  <div class="modal-content w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900">💰 إضافة دفعة جديدة</h3>
+        <button type="button" onclick="ModalManager.hideModal('paymentModal')" class="text-gray-500 hover:text-gray-800 text-xl">✖</button>
+      </div>
+      
+      <form id="paymentForm" class="space-y-4">
+        <input type="hidden" id="payment_order_id">
+        
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div class="text-center">
+            <div class="text-yellow-800 font-semibold">المبلغ المتبقي</div>
+            <div class="text-2xl font-bold text-yellow-600" id="remainingAmount">0.00 دج</div>
+          </div>
+        </div>
+        
+        <div><label class="block text-sm text-gray-700 mb-1">المبلغ المدفوع *</label><input type="number" step="0.01" id="payment_amount" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="0.00" min="0.01"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">تاريخ الدفع *</label><input type="date" id="payment_date" required class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" value="{{ now.strftime('%Y-%m-%d') if now else '' }}"></div>
+        <div><label class="block text-sm text-gray-700 mb-1">طريقة الدفع</label>
+          <select id="payment_method" class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+            <option value="نقدي">نقدي</option>
+            <option value="تحويل بنكي">تحويل بنكي</option>
+            <option value="شيك">شيك</option>
+            <option value="بطاقة ائتمان">بطاقة ائتمان</option>
+          </select>
+        </div>
+        <div><label class="block text-sm text-gray-700 mb-1">ملاحظات الدفع</label><textarea id="payment_notes" rows="3" class="w-full rounded-lg border px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="ملاحظات حول عملية الدفع..."></textarea></div>
+        
+        <div class="flex gap-3 pt-4">
+          <button type="button" onclick="ModalManager.hideModal('paymentModal')" class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">إلغاء</button>
+          <button type="submit" class="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">تأكيد الدفع</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= -->
+<!-- ⚡ قسم JavaScript المنظم -->
+<!-- ======================= -->
+<script>
+// 📦 مكتبة إدارة النماذج المنبثقة
+const ModalManager = {
+    showModal(modalId) {
+        console.log('🔓 إظهار النافذة:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+    },
+
+    hideModal(modalId) {
+        console.log('🔒 إخفاء النافذة:', modalId);
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    }
+};
+
+// 📞 مكتبة إدارة الهواتف
+const PhoneManager = {
+    showPhoneOptions(phoneNumber, button) {
+        document.querySelectorAll('[id^="phoneOptions-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+        
+        const menuId = `phoneOptions-${phoneNumber.replace(/\+/g, '').replace(/ /g, '')}`;
+        const menu = document.getElementById(menuId);
+        
+        if (menu) {
+            menu.classList.toggle('hidden');
+            
+            setTimeout(() => {
+                function closeMenu(e) {
+                    if (!menu.contains(e.target) && e.target !== button) {
+                        menu.classList.add('hidden');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                }
+                document.addEventListener('click', closeMenu);
+            }, 100);
+        }
+    },
+
+    copyPhoneNumber(phoneNumber) {
+        navigator.clipboard.writeText(phoneNumber).then(() => {
+            this.showToast('تم نسخ الرقم: ' + phoneNumber);
+        });
+    },
+
+    showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 left-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transition-all duration-300';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+};
+
+// 📝 مكتبة إدارة الملاحظات
+const NotesManager = {
+    showNotes(note) {
+        const notesContent = document.getElementById('notesContent');
+        if (note && note.trim() !== '') {
+            notesContent.innerHTML = `<div class="bg-gray-50 p-4 rounded-lg"><p class="text-gray-700 leading-relaxed whitespace-pre-wrap">${note}</p></div>`;
+        } else {
+            notesContent.innerHTML = '<div class="text-center text-gray-500 py-8"><i class="fas fa-sticky-note text-4xl mb-3"></i><p>لا توجد ملاحظات</p></div>';
+        }
+        ModalManager.showModal('notesModal');
+    }
+};
+
+// ✏️ مكتبة إدارة الطلبيات
+const OrderManager = {
+    init() {
+        // زر إضافة طلبية
+        document.getElementById('btnAdd').addEventListener('click', () => {
+            this.showAddForm();
+        });
+    },
+
+    showAddForm() {
+        document.getElementById('modalTitle').textContent = '➕ إضافة طلبية جديدة';
+        document.getElementById('orderForm').action = "{{ url_for('add_order') }}";
+        document.getElementById('orderForm').reset();
+        document.getElementById('order_status').value = '';
+        document.getElementById('order_id').value = '';
+        ModalManager.showModal('orderModal');
+    },
+
+    editOrder(button) {
+        const orderId = button.dataset.id;
+        document.getElementById('modalTitle').textContent = '✏️ تعديل الطلبية';
+        document.getElementById('orderForm').action = '/orders/edit/' + orderId;
+        document.getElementById('order_id').value = orderId;
+        
+        document.getElementById('order_name').value = button.dataset.name || '';
+        document.getElementById('order_wilaya').value = button.dataset.wilaya || '';
+        document.getElementById('order_product').value = button.dataset.product || '';
+        document.getElementById('order_paid').value = button.dataset.paid || '0';
+        document.getElementById('order_total').value = button.dataset.total || '0';
+        document.getElementById('order_note').value = button.dataset.note || '';
+        document.getElementById('order_status').value = button.dataset.status || '';
+        document.getElementById('order_phone').value = button.dataset.phones || '';
+
+        ModalManager.showModal('orderModal');
+    }
+};
+
+// 🕒 مكتبة إدارة السجل
+const HistoryManager = {
+    currentOrderId: null,
+
+    showHistory(orderId) {
+        this.currentOrderId = orderId;
+        this.loadOrderHistory(orderId);
+        ModalManager.showModal('historyModal');
+    },
+
+    loadOrderHistory(orderId) {
+        const historyContent = document.getElementById('historyContent');
+        const paymentSummary = document.getElementById('paymentSummary');
+        
+        historyContent.innerHTML = '<div class="text-center text-gray-500 py-8"><i class="fas fa-spinner fa-spin text-2xl mb-3"></i><p>جاري تحميل السجل...</p></div>';
+        paymentSummary.innerHTML = '';
+        
+        fetch(`/orders/history/${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                this.displayHistory(data);
+            })
+            .catch(error => {
+                historyContent.innerHTML = `<div class="text-center text-red-500 py-8"><i class="fas fa-exclamation-triangle text-4xl mb-3"></i><p>خطأ في تحميل السجل</p></div>`;
+            });
+    },
+
+    displayHistory(data) {
+        const orderInfo = data.order_info;
+        const history = data.history;
+        const paymentSummary = document.getElementById('paymentSummary');
+        const historyContent = document.getElementById('historyContent');
+        const addPaymentBtn = document.getElementById('addPaymentBtn');
+
+        paymentSummary.innerHTML = `
+            <div class="text-center"><div class="text-gray-600">إجمالي المدفوع</div><div class="text-2xl font-bold text-green-600">${orderInfo.paid_amount.toFixed(2)} دج</div></div>
+            <div class="text-center"><div class="text-gray-600">المبلغ الإجمالي</div><div class="text-2xl font-bold text-blue-600">${orderInfo.total_amount.toFixed(2)} دج</div></div>
+            <div class="text-center"><div class="text-gray-600">المتبقي</div><div class="text-2xl font-bold ${orderInfo.remaining_amount > 0 ? 'text-red-600' : 'text-green-600'}">${orderInfo.remaining_amount.toFixed(2)} دج</div></div>
+            <div class="text-center"><div class="text-gray-600">الحالة</div><div class="text-lg font-semibold ${orderInfo.is_paid ? 'text-green-600' : 'text-yellow-600'}">${orderInfo.is_paid ? 'مدفوعة بالكامل' : 'مدفوعة جزئياً'}</div></div>
+        `;
+
+        if (!history || history.length === 0) {
+            historyContent.innerHTML = '<div class="text-center text-gray-500 py-8"><i class="fas fa-history text-4xl mb-3"></i><p>لا توجد سجلات حتى الآن</p></div>';
+            addPaymentBtn.style.display = 'none';
+            return;
+        }
+
+        let historyHTML = '';
+        history.forEach(record => {
+            const isPayment = record.change_type.includes('دفعة');
+            const bgColor = isPayment ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200';
+            const icon = isPayment ? '💰' : '📝';
+            
+            historyHTML += `
+                <div class="border rounded-lg p-4 ${bgColor}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2"><span class="text-lg">${icon}</span><span class="font-semibold ${isPayment ? 'text-green-700' : 'text-blue-700'}">${record.change_type}</span></div>
+                        <span class="text-xs text-gray-500">${record.timestamp}</span>
+                    </div>
+                    <div class="text-sm text-gray-700">${record.details}</div>
+                    ${isPayment ? '<div class="mt-2 text-xs text-green-600 font-semibold">✅ دفعة مالية</div>' : ''}
+                </div>
+            `;
+        });
+        
+        historyContent.innerHTML = historyHTML;
+        addPaymentBtn.style.display = orderInfo.remaining_amount > 0 ? 'block' : 'none';
+    }
+};
+
+// 💰 مكتبة إدارة الدفعات
+const PaymentManager = {
+    currentOrderId: null,
+    currentRemaining: 0,
+
+    showPaymentModal(orderId, remainingAmount) {
+        this.currentOrderId = orderId;
+        this.currentRemaining = remainingAmount;
+        
+        document.getElementById('payment_order_id').value = orderId;
+        document.getElementById('remainingAmount').textContent = remainingAmount.toFixed(2) + ' دج';
+        document.getElementById('payment_amount').max = remainingAmount;
+        document.getElementById('payment_amount').value = remainingAmount;
+        
+        ModalManager.showModal('paymentModal');
+    },
+
+    showPaymentFromHistory() {
+        if (HistoryManager.currentOrderId) {
+            this.showPaymentModal(HistoryManager.currentOrderId, this.currentRemaining);
+        }
+    },
+
+    init() {
+        document.getElementById('paymentForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.submitPayment();
+        });
+    },
+
+    submitPayment() {
+        const orderId = document.getElementById('payment_order_id').value;
+        const amount = document.getElementById('payment_amount').value;
+        const date = document.getElementById('payment_date').value;
+        const method = document.getElementById('payment_method').value;
+        const notes = document.getElementById('payment_notes').value;
+        
+        if (!amount || amount <= 0) {
+            PhoneManager.showToast('يرجى إدخال مبلغ صحيح', 'error');
+            return;
+        }
+        
+        if (confirm(`هل تريد تأكيد إضافة دفعة بقيمة ${amount} دج؟`)) {
+            const formData = new FormData();
+            formData.append('amount', amount);
+            formData.append('payment_date', date);
+            formData.append('payment_method', method);
+            formData.append('notes', notes);
+            
+            fetch(`/orders/payment/${orderId}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    PhoneManager.showToast(data.message);
+                    ModalManager.hideModal('paymentModal');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    PhoneManager.showToast(data.error || 'حدث خطأ أثناء إضافة الدفعة', 'error');
+                }
+            })
+            .catch(error => {
+                PhoneManager.showToast('حدث خطأ في الاتصال بالسيرفر', 'error');
+            });
+        }
+    }
+};
+
+// 🔍 مكتبة البحث والتصفية
+const SearchManager = {
+    init() {
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.searchTable(e.target.value);
+        });
+
+        document.getElementById('statusFilter').addEventListener('change', (e) => {
+            this.filterByStatus(e.target.value);
+        });
+    },
+
+    searchTable(searchTerm) {
+        const rows = document.querySelectorAll('#ordersTable tr');
+        searchTerm = searchTerm.toLowerCase().trim();
+        
+        rows.forEach(row => {
+            if (row.cells.length > 1) {
+                const rowText = row.textContent.toLowerCase();
+                row.style.display = searchTerm === '' || rowText.includes(searchTerm) ? '' : 'none';
+            }
+        });
+    },
+
+    filterByStatus(selectedStatus) {
+        const rows = document.querySelectorAll('#ordersTable tr');
+        
+        rows.forEach(row => {
+            if (row.cells.length > 1) {
+                const statusCell = row.cells[8];
+                if (statusCell) {
+                    const statusText = statusCell.textContent.trim();
+                    row.style.display = selectedStatus === '' || statusText === selectedStatus ? '' : 'none';
+                }
+            }
+        });
+    }
+};
+
+// 🚀 تهيئة التطبيق
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 بدء تهيئة نظام الطلبيات...');
+    
+    OrderManager.init();
+    PaymentManager.init();
+    SearchManager.init();
+    
+    // إغلاق النوافذ عند النقر خارجها
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal')) {
+            ModalManager.hideModal(event.target.id);
+        }
+    });
+
+    // إغلاق النوافذ بالزر Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            document.querySelectorAll('.modal.active').forEach(modal => {
+                ModalManager.hideModal(modal.id);
+            });
+        }
+    });
+    
+    console.log('✅ تم تهيئة جميع الأنظمة بنجاح');
+});
+</script>
+
+<!-- ======================= -->
+<!-- 🎨 قسم التنسيق الإضافي -->
+<!-- ======================= -->
+<style>
+.phone-btn {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.phone-btn:hover {
+    background-color: #f3f4f6;
+}
+
+[id^="phoneOptions-"] {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+[id^="phoneOptions-"] a,
+[id^="phoneOptions-"] button {
+    border: none;
+    background: none;
+    text-align: right;
+    width: 100%;
+    cursor: pointer;
+}
+
+.modal-content {
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.form-input:focus, .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,621 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+  <!-- رأس الصفحة -->
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">⚙️ مركز التحكم والإعدادات</h1>
+      <p class="text-gray-600 mt-2">إدارة كاملة للنظام والمستخدمين والإعدادات</p>
+    </div>
+    
+    <div class="flex items-center gap-4">
+      <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl px-6 py-3 shadow-lg">
+        <div class="text-sm font-medium">المستخدمون النشطون</div>
+        <div class="text-2xl font-bold mt-1">{{ users|length }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تبويبات الإعدادات -->
+  <div class="card p-2 mb-8">
+    <div class="flex flex-wrap border-b">
+      <button onclick="showTab('users')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="users">
+        <i class="fas fa-users mr-2"></i>
+        إدارة المستخدمين
+      </button>
+      <button onclick="showTab('system')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="system">
+        <i class="fas fa-cog mr-2"></i>
+        إعدادات النظام
+      </button>
+      <button onclick="showTab('statuses')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="statuses">
+        <i class="fas fa-tags mr-2"></i>
+        حالات الطلبيات
+      </button>
+      <button onclick="showTab('suppliers')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="suppliers">
+        <i class="fas fa-truck mr-2"></i>
+        إدارة الموردين
+      </button>
+      <button onclick="showTab('products')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="products">
+        <i class="fas fa-box mr-2"></i>
+        إدارة المنتجات
+      </button>
+      <button onclick="showTab('permissions')" 
+              class="tab-btn px-6 py-3 border-b-2 font-medium text-sm transition-colors"
+              data-tab="permissions">
+        <i class="fas fa-shield-alt mr-2"></i>
+        الصلاحيات والأدوار
+      </button>
+    </div>
+  </div>
+
+  <!-- محتوى التبويبات -->
+  <div id="tabContent">
+    
+    <!-- تبويب إدارة المستخدمين -->
+    <div id="users-tab" class="tab-content active">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold text-gray-900">👥 إدارة المستخدمين</h3>
+        <button onclick="showModal('addUserModal')" class="btn-success flex items-center gap-2">
+          <i class="fas fa-user-plus"></i>
+          إضافة مستخدم جديد
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-blue-600">{{ users|length }}</div>
+          <div class="text-sm text-gray-600 mt-1">إجمالي المستخدمين</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-green-600">{{ users|selectattr('is_active', 'equalto', true)|list|length }}</div>
+          <div class="text-sm text-gray-600 mt-1">مستخدمين نشطين</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-purple-600">{{ users|selectattr('role', 'equalto', 'admin')|list|length }}</div>
+          <div class="text-sm text-gray-600 mt-1">مديرين</div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-2xl font-bold text-orange-600">{{ users|selectattr('role', 'equalto', 'user')|list|length }}</div>
+          <div class="text-sm text-gray-600 mt-1">مستخدمين عاديين</div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="w-full">
+          <thead class="table-header">
+            <tr>
+              <th class="p-4 text-right">#</th>
+              <th class="p-4 text-right">المستخدم</th>
+              <th class="p-4 text-right">معلومات الاتصال</th>
+              <th class="p-4 text-right">الدور والصلاحيات</th>
+              <th class="p-4 text-right">الحالة</th>
+              <th class="p-4 text-right">آخر نشاط</th>
+              <th class="p-4 text-right">العمليات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr class="hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <td class="p-4">
+                <div class="font-mono text-sm text-gray-500">#{{ user.id }}</div>
+              </td>
+              
+              <td class="p-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {{ user.username[0] }}
+                  </div>
+                  <div>
+                    <div class="font-semibold text-gray-900">{{ user.username }}</div>
+                    <div class="text-xs text-gray-500">{{ user.full_name or "بدون اسم" }}</div>
+                  </div>
+                </div>
+              </td>
+              
+              <td class="p-4">
+                <div class="space-y-1 text-sm">
+                  <div class="text-gray-600">{{ user.email or "بدون بريد" }}</div>
+                  <div class="text-gray-500">{{ user.phone or "بدون هاتف" }}</div>
+                </div>
+              </td>
+              
+              <td class="p-4">
+                <div class="space-y-2">
+                  <span class="badge {% if user.role == 'admin' %}badge-danger{% else %}badge-info{% endif %}">
+                    {{ user.role }}
+                  </span>
+                  <div class="text-xs text-gray-500">
+                    {% if user.permissions %}
+                    {{ user.permissions|length }} صلاحية
+                    {% else %}
+                    لا توجد صلاحيات محددة
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              
+              <td class="p-4">
+                {% if user.is_active %}
+                <span class="badge badge-success">نشط</span>
+                {% else %}
+                <span class="badge badge-danger">غير نشط</span>
+                {% endif %}
+              </td>
+              
+              <td class="p-4">
+                <div class="text-sm text-gray-600">{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else "لم يسجل دخول" }}</div>
+              </td>
+              
+              <td class="p-4">
+  <div class="flex flex-col gap-2">
+    <!-- زر التعديل -->
+    <button onclick="editUser({{ user.id }})" 
+            class="flex items-center gap-2 text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors text-sm">
+      <i class="fas fa-edit text-xs"></i>
+      تعديل
+    </button>
+    
+    <!-- زر إيقاف/تفعيل -->
+    {% if user.username != session.user %}
+    <a href="{{ url_for('toggle_user_status', user_id=user.id) }}" 
+       onclick="return confirm('هل تريد {{ 'إيقاف' if user.is_active else 'تفعيل' }} هذا المستخدم؟')"
+       class="flex items-center gap-2 {% if user.is_active %}text-orange-600 hover:text-orange-800{% else %}text-green-600 hover:text-green-800{% endif %} p-2 rounded-lg hover:bg-orange-50 transition-colors text-sm">
+      <i class="fas {% if user.is_active %}fa-pause{% else %}fa-play{% endif %} text-xs"></i>
+      {{ "إيقاف" if user.is_active else "تفعيل" }}
+    </a>
+    
+    <!-- زر الحذف -->
+    <a href="{{ url_for('delete_user', user_id=user.id) }}" 
+       onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم؟')"
+       class="flex items-center gap-2 text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors text-sm">
+      <i class="fas fa-trash text-xs"></i>
+      حذف
+    </a>
+    {% else %}
+    <span class="text-gray-400 text-sm p-2">لا يمكن تعديل حسابك</span>
+    {% endif %}
+  </div>
+</td>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <!-- مودال إضافة مستخدم جديد -->
+<div id="addUserModal" class="modal">
+  <div class="modal-content w-full max-w-md">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-gray-900">👤 إضافة مستخدم جديد</h3>
+        <button onclick="hideModal('addUserModal')" class="text-gray-400 hover:text-gray-600 text-xl">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form method="POST" action="{{ url_for('settings') }}" class="space-y-4">
+        <input type="hidden" name="action" value="add_user">
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم *</label>
+          <input type="text" name="username" required class="form-input" placeholder="اسم المستخدم">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+          <input type="email" name="email" class="form-input" placeholder="email@example.com">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور *</label>
+          <input type="password" name="password" required class="form-input" placeholder="كلمة المرور">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+          <input type="text" name="full_name" class="form-input" placeholder="الاسم الكامل">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">رقم الهاتف</label>
+          <input type="tel" name="phone" class="form-input" placeholder="+213 XXX XX XX XX">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">الدور</label>
+          <select name="role" class="form-select">
+            <option value="user">مستخدم عادي</option>
+            <option value="manager">مدير</option>
+            <option value="admin">مدير نظام</option>
+          </select>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" onclick="hideModal('addUserModal')" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            إلغاء
+          </button>
+          <button type="submit" class="flex-1 btn-success">
+            <i class="fas fa-save ml-2"></i>
+            حفظ المستخدم
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+    </div>
+
+    <!-- تبويب إعدادات النظام -->
+    <div id="system-tab" class="tab-content">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- الإعدادات العامة -->
+        <div class="card p-6">
+          <h3 class="text-xl font-bold text-gray-900 mb-6">🌐 الإعدادات العامة</h3>
+          
+          <form method="POST" action="{{ url_for('update_system_settings') }}" class="space-y-6">
+            <input type="hidden" name="action" value="system_settings">
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">اسم الشركة</label>
+                <input type="text" name="company_name" value="{{ settings.company_name }}" class="form-input" placeholder="اسم الشركة أو المؤسسة">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">الشعار</label>
+                <input type="file" name="logo" class="form-input" accept="image/*">
+                {% if settings.logo %}
+                <div class="mt-2">
+                  <img src="{{ settings.logo }}" alt="شعار الشركة" class="h-16 rounded">
+                </div>
+                {% endif %}
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">العملة</label>
+                <select name="currency" class="form-select">
+                  <option value="DZD" {% if settings.currency == 'DZD' %}selected{% endif %}>دينار جزائري (DZD)</option>
+                  <option value="USD" {% if settings.currency == 'USD' %}selected{% endif %}>دولار أمريكي (USD)</option>
+                  <option value="EUR" {% if settings.currency == 'EUR' %}selected{% endif %}>يورو (EUR)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">اللغة</label>
+                <select name="language" class="form-select">
+                  <option value="ar" {% if settings.language == 'ar' %}selected{% endif %}>العربية</option>
+                  <option value="en" {% if settings.language == 'en' %}selected{% endif %}>English</option>
+                  <option value="fr" {% if settings.language == 'fr' %}selected{% endif %}>Français</option>
+                </select>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-primary w-full">
+              <i class="fas fa-save ml-2"></i>
+              حفظ الإعدادات العامة
+            </button>
+          </form>
+        </div>
+
+        <!-- إعدادات الأمان -->
+        <div class="card p-6">
+          <h3 class="text-xl font-bold text-gray-900 mb-6">🔒 إعدادات الأمان</h3>
+          
+          <form method="POST" action="{{ url_for('update_security_settings') }}" class="space-y-6">
+            <input type="hidden" name="action" value="security_settings">
+            
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">تفعيل التحقق بخطوتين</div>
+                  <div class="text-sm text-gray-600">زيادة أمان حسابات المستخدمين</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="two_factor" class="sr-only peer" {% if settings.two_factor %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">تسجيل نشاط المستخدمين</div>
+                  <div class="text-sm text-gray-600">تسجيل جميع عمليات الدخول والنشاطات</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="activity_logging" class="sr-only peer" {% if settings.activity_logging %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">مدة انتهاء الجلسة (دقائق)</label>
+                <input type="number" name="session_timeout" value="{{ settings.session_timeout }}" class="form-input" min="5" max="1440">
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">قوة كلمة المرور</label>
+                <select name="password_strength" class="form-select">
+                  <option value="low" {% if settings.password_strength == 'low' %}selected{% endif %}>منخفضة (6 أحرف)</option>
+                  <option value="medium" {% if settings.password_strength == 'medium' %}selected{% endif %}>متوسطة (8 أحرف + أرقام)</option>
+                  <option value="high" {% if settings.password_strength == 'high' %}selected{% endif %}>عالية (10 أحرف + أرقام + رموز)</option>
+                </select>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-primary w-full">
+              <i class="fas fa-shield-alt ml-2"></i>
+              حفظ إعدادات الأمان
+            </button>
+          </form>
+        </div>
+
+        <!-- إعدادات الواجهة -->
+        <div class="card p-6">
+          <h3 class="text-xl font-bold text-gray-900 mb-6">🎨 إعدادات الواجهة</h3>
+          
+          <form method="POST" action="{{ url_for('update_ui_settings') }}" class="space-y-6">
+            <input type="hidden" name="action" value="ui_settings">
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">السمة</label>
+                <select name="theme" class="form-select" onchange="previewTheme(this.value)">
+                  <option value="light" {% if settings.theme == 'light' %}selected{% endif %}>فاتحة</option>
+                  <option value="dark" {% if settings.theme == 'dark' %}selected{% endif %}>داكنة</option>
+                  <option value="auto" {% if settings.theme == 'auto' %}selected{% endif %}>تلقائية</option>
+                </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">اللون الأساسي</label>
+                <div class="flex gap-2">
+                  <input type="color" name="primary_color" value="{{ settings.primary_color }}" class="w-12 h-12 rounded cursor-pointer">
+                  <input type="text" name="primary_color_hex" value="{{ settings.primary_color }}" class="form-input flex-1" placeholder="#3B82F6">
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">عدد الصفوف في الجداول</label>
+                <select name="rows_per_page" class="form-select">
+                  <option value="10" {% if settings.rows_per_page == 10 %}selected{% endif %}>10 صفوف</option>
+                  <option value="25" {% if settings.rows_per_page == 25 %}selected{% endif %}>25 صف</option>
+                  <option value="50" {% if settings.rows_per_page == 50 %}selected{% endif %}>50 صف</option>
+                  <option value="100" {% if settings.rows_per_page == 100 %}selected{% endif %}>100 صف</option>
+                </select>
+              </div>
+              
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">وضع الضغط</div>
+                  <div class="text-sm text-gray-600">إخفاء القوائم الجانبية</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="compact_mode" class="sr-only peer" {% if settings.compact_mode %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-primary w-full">
+              <i class="fas fa-palette ml-2"></i>
+              حفظ إعدادات الواجهة
+            </button>
+          </form>
+        </div>
+
+        <!-- إعدادات الإشعارات -->
+        <div class="card p-6">
+          <h3 class="text-xl font-bold text-gray-900 mb-6">🔔 إعدادات الإشعارات</h3>
+          
+          <form method="POST" action="{{ url_for('update_notification_settings') }}" class="space-y-6">
+            <input type="hidden" name="action" value="notification_settings">
+            
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">إشعارات البريد الإلكتروني</div>
+                  <div class="text-sm text-gray-600">إرسال إشعارات عبر البريد الإلكتروني</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="email_notifications" class="sr-only peer" {% if settings.email_notifications %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">إشعارات الدفع</div>
+                  <div class="text-sm text-gray-600">إشعارات بمواعيد الدفع والديون</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="payment_notifications" class="sr-only peer" {% if settings.payment_notifications %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <div class="font-medium text-gray-900">إشعارات المخزون</div>
+                  <div class="text-sm text-gray-600">تنبيهات بنفاد المنتجات</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="inventory_notifications" class="sr-only peer" {% if settings.inventory_notifications %}checked{% endif %}>
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">توقيت الإشعارات</label>
+                <select name="notification_time" class="form-select">
+                  <option value="instant" {% if settings.notification_time == 'instant' %}selected{% endif %}>فوري</option>
+                  <option value="daily" {% if settings.notification_time == 'daily' %}selected{% endif %}>يومي</option>
+                  <option value="weekly" {% if settings.notification_time == 'weekly' %}selected{% endif %}>أسبوعي</option>
+                </select>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn-primary w-full">
+              <i class="fas fa-bell ml-2"></i>
+              حفظ إعدادات الإشعارات
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- تبويب حالات الطلبيات (المحتوى الأصلي) -->
+    <div id="statuses-tab" class="tab-content">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-gray-900">🏷️ إدارة حالات الطلبيات</h3>
+        <p class="text-gray-600 mt-2">إضافة وتعديل حالات الطلبيات في النظام</p>
+      </div>
+
+      <div class="card p-6 mb-6">
+        <h4 class="font-medium mb-4">إضافة حالة جديدة</h4>
+        <form method="POST" class="flex gap-2">
+          <input name="name" placeholder="اسم الحالة (مثال: قيد التنفيذ)" required class="form-input flex-1">
+          <input name="color" type="color" value="#FFC107" class="w-16 h-12 rounded cursor-pointer">
+          <input type="hidden" name="action" value="add_status">
+          <button class="btn-warning">إضافة حالة</button>
+        </form>
+      </div>
+
+      <div class="table-container">
+        <table class="w-full">
+          <thead class="table-header">
+            <tr>
+              <th class="p-3">#</th>
+              <th class="p-3">الاسم</th>
+              <th class="p-3">اللون</th>
+              <th class="p-3">عدد الطلبيات</th>
+              <th class="p-3">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in statuses %}
+            <tr class="border-t">
+              <td class="p-3">{{ s.id }}</td>
+              <td class="p-3">{{ s.name }}</td>
+              <td class="p-3">
+                <span class="inline-block px-3 py-1 rounded-full text-white font-semibold" style="background:{{ s.color }}">
+                  {{ s.color }}
+                </span>
+              </td>
+              <td class="p-3 text-center">{{ s.orders|length }}</td>
+              <td class="p-3">
+                <form method="POST" action="{{ url_for('edit_status', id=s.id) }}" class="flex gap-2 items-center">
+                  <input name="name" value="{{ s.name }}" required class="form-input text-sm">
+                  <input name="color" value="{{ s.color }}" type="color" class="w-8 h-8 rounded cursor-pointer">
+                  <button class="btn-warning text-sm">حفظ</button>
+                </form>
+                <a href="{{ url_for('delete_status', id=s.id) }}" onclick="return confirm('حذف الحالة؟')" class="btn-danger text-sm mt-2 inline-block">حذف</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- تبويب إدارة الموردين -->
+    <div id="suppliers-tab" class="tab-content">
+      <!-- محتوى إدارة الموردين -->
+    </div>
+
+    <!-- تبويب إدارة المنتجات -->
+    <div id="products-tab" class="tab-content">
+      <!-- محتوى إدارة المنتجات -->
+    </div>
+
+    <!-- تبويب الصلاحيات والأدوار -->
+    <div id="permissions-tab" class="tab-content">
+      <!-- محتوى الصلاحيات -->
+    </div>
+  </div>
+</div>
+
+
+<script>
+// إدارة التبويبات
+function showTab(tabName) {
+  // إخفاء جميع المحتويات
+  document.querySelectorAll('.tab-content').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  
+  // إزالة النشط من جميع الأزرار
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('border-blue-500', 'text-blue-600');
+    btn.classList.add('border-transparent', 'text-gray-500');
+  });
+  
+  // إظهار المحتوى المطلوب
+  document.getElementById(tabName + '-tab').classList.add('active');
+  
+  // تفعيل الزر المطلوب
+  document.querySelector(`[data-tab="${tabName}"]`).classList.add('border-blue-500', 'text-blue-600');
+  document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-gray-500');
+}
+
+// التهيئة الأولية
+document.addEventListener('DOMContentLoaded', function() {
+  showTab('users');
+});
+
+// وظائف إدارة المستخدمين
+function editUser(userId) {
+  // كود تعديل المستخدم
+  console.log('تعديل المستخدم:', userId);
+}
+
+function toggleUserStatus(userId, isActive) {
+  if (confirm(`هل تريد ${isActive ? 'إيقاف' : 'تفعيل'} هذا المستخدم؟`)) {
+    // كود تغيير حالة المستخدم
+    console.log('تغيير حالة المستخدم:', userId, isActive);
+  }
+}
+
+function deleteUser(userId) {
+  if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+    // كود حذف المستخدم
+    console.log('حذف المستخدم:', userId);
+  }
+}
+
+// معاينة السمة
+function previewTheme(theme) {
+  document.body.className = theme;
+}
+</script>
+
+<style>
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* تخصيص التبديل */
+input[type="checkbox"]:checked ~ .peer-checked\:bg-blue-600 {
+  background-color: #2563eb;
+}
+</style>
+{% endblock %}
